@@ -1,9 +1,19 @@
 package ObjectClasses
 
+import androidx.room3.ColumnInfo
+import androidx.room3.Entity
+import androidx.room3.PrimaryKey
+
+@Entity(tableName = "liste")
 class ListeToDo(
-    public var id: String? = null,
-    public var titreListeToDo: String,
-    public var lesItems: MutableList<ItemToDo>,
+    @PrimaryKey(autoGenerate = true)
+    var id: String? = null,
+
+    @ColumnInfo(name = "titreListeToDo")
+    var titreListeToDo: String,
+
+    @ColumnInfo(name = "lesItems")
+    var lesItems: MutableList<ItemToDo>,
 ) {
 
     private fun RechercherItem(description : String) : ItemToDo{

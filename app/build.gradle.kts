@@ -43,6 +43,7 @@ dependencies {
     implementation("androidx.compose.runtime:runtime:1.11.3")
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-scalars:2.9.0")
+    implementation(libs.androidx.room3.common.jvm)
     var room_version = "2.6.1"
 
     implementation ("androidx.room:room-runtime:$room_version")
