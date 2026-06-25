@@ -12,7 +12,9 @@ import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
     private var btnOk: Button? = null
@@ -27,9 +29,41 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // On affiche le bouton OK même hors ligne si on a déjà un hash en mémoire (mode offline)
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val hash = prefs.getString("hash", "")
+        
         if (verifReseau(this)) {
-            Log.i("PMR","Logged in")
+            Log.i("PMR","Réseau disponible")
             afficherBtnOk()
+            syncOfflineData()
+        } else if (!hash.isNullOrBlank()) {
+            Log.i("PMR", "Mode Hors Ligne activé")
+            afficherBtnOk()
+        }
+    }
+
+    private fun syncOfflineData() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val hash = prefs.getString("hash", "") ?: ""
+        if (hash.isBlank()) return
+
+        val db = AppDatabase.getDatabase(this)
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val itemsToSync = db.itemDao().getItemsToSync()
+                itemsToSync.forEach { item ->
+                    val doneValue = if (item.fait) "1" else "0"
+                    TeaApi.retrofitService.updateItem(item.listId, item.id, doneValue, hash)
+
+                    // Mise à jour locale pour marquer comme synchronisé
+                    item.toSync = false
+                    db.itemDao().update(item)
+                    Log.i("PMR", "Item synchronisé automatiquement : ${item.description}")
+                }
+            } catch (e: Exception) {
+                Log.e("PMR", "Sync auto échouée : ${e.message}")
+            }
         }
     }
 
@@ -89,7 +123,17 @@ class MainActivity : AppCompatActivity() {
                 Log.e("PMR", "Pseudo ou mot de passe incorrect")
             }
         } catch(e: Exception) {
-            Log.e("PMR", "Erreur réseau : ${e.message}")
+            Log.e("PMR", "Erreur réseau, vérification du mode hors-ligne : ${e.message}")
+            val prefs = PreferenceManager.getDefaultSharedPreferences(this@MainActivity)
+            val realHash = prefs.getString("hash", "")
+            if (!realHash.isNullOrBlank()) {
+                Log.i("PMR", "Accès autorisé via le cache hors-ligne")
+                Settings.pseudo = pseudo
+                val intent = Intent(this@MainActivity, ChoixListActivity::class.java)
+                startActivity(intent)
+            } else {
+                Log.e("PMR", "Impossible de se connecter et aucun cache disponible")
+            }
         }
         }
     }

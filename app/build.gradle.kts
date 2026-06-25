@@ -1,7 +1,6 @@
-import org.gradle.kotlin.dsl.annotationProcessor
-
 plugins {
     alias(libs.plugins.android.application)
+    id("kotlin-kapt")
 }
 
 android {
@@ -47,7 +46,7 @@ dependencies {
     var room_version = "2.6.1"
 
     implementation ("androidx.room:room-runtime:$room_version")
-    annotationProcessor ("androidx.room:room-compiler:$room_version")
+    kapt ("androidx.room:room-compiler:$room_version")
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.cardview)

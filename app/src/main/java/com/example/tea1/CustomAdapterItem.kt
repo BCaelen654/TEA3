@@ -44,19 +44,26 @@ class CustomAdapterItem(
         viewHolder.checkBox?.isChecked = item.fait
         viewHolder.checkBox?.setOnCheckedChangeListener { _, isChecked ->
             item.fait = isChecked
+            val context = viewHolder.itemView.context
+            val db = AppDatabase.getDatabase(context)
 
             kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                 try {
-                    val idItem = item.id ?: return@launch // Si pas d'ID, on ne peut rien faire
+                    val idItem = item.id
                     val doneValue = if (isChecked) "1" else "0"
 
+                    // Tentative de mise à jour auprès de l'API
                     TeaApi.retrofitService.updateItem(idListe, idItem, doneValue, hash)
-                    android.util.Log.i(
-                        "PMR",
-                        "Mise à jour réussie pour l'item : ${item.description}"
-                    )
+                    
+                    // Succès : mise à jour SQLite (toSync = false)
+                    item.toSync = false
+                    db.itemDao().update(item)
+                    android.util.Log.i("PMR", "Update API réussie pour : ${item.description}")
                 } catch (e: Exception) {
-                    android.util.Log.e("PMR", "Erreur update : ${e.message}")
+                    // Échec : on garde la modif en local et on marque pour synchro future
+                    item.toSync = true
+                    db.itemDao().update(item)
+                    android.util.Log.e("PMR", "Offline : Item marqué pour synchro future")
                 }
             }
         }

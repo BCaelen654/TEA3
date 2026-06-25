@@ -1,28 +1,24 @@
 package ObjectClasses
 
-import androidx.room3.ColumnInfo
-import androidx.room3.Entity
-import androidx.room3.PrimaryKey
+import androidx.room.ColumnInfo
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import androidx.room.Ignore
 
-@Entity(tableName = "liste")
-class ListeToDo(
-    @PrimaryKey(autoGenerate = true)
-    var id: String? = null,
+@Entity(tableName = "lists")
+data class ListeToDo(
+    @PrimaryKey
+    var id: String = "", // L'ID de l'API est une String. Valeur par défaut pour création locale.
 
     @ColumnInfo(name = "titreListeToDo")
-    var titreListeToDo: String,
-
-    @ColumnInfo(name = "lesItems")
-    var lesItems: MutableList<ItemToDo>,
+    var titreListeToDo: String
 ) {
+    @Ignore
+    var lesItems: MutableList<ItemToDo> = mutableListOf()
 
-    private fun RechercherItem(description : String) : ItemToDo{
-        for (i in 0..(lesItems.size)) {
-            if (lesItems[i].description == description) {
-                return lesItems[i]
-            }
-        }
-        return  ItemToDo(null, null, false)
+    // Constructeur secondaire pour l'initialisation facile dans le code existant
+    constructor(id: String?, titreListeToDo: String, lesItems: MutableList<ItemToDo>) : this(id ?: "", titreListeToDo) {
+        this.lesItems = lesItems
     }
 
     override fun toString(): String {

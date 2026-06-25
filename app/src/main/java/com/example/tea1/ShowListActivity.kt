@@ -19,8 +19,9 @@ import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlin.collections.plus
+import kotlinx.coroutines.withContext
 
 
 class ShowListActivity : AppCompatActivity() {
@@ -115,33 +116,48 @@ class ShowListActivity : AppCompatActivity() {
 
 
 private fun refreshItems(id : String, token : String) {
+    val db = AppDatabase.getDatabase(this)
     lifecycleScope.launch {
         try {
             // Appel API pour récupérer les items en JSON
             val jsonResponse = TeaApi.retrofitService.getItems(id, token)
             val rootObject = org.json.JSONObject(jsonResponse)
-            val jsonArray =
-                rootObject.getJSONArray("items") // Le serveur renvoie une clé "items"
+            val jsonArray = rootObject.getJSONArray("items") // Le serveur renvoie une clé "items"
 
             val nouveauxItems = mutableListOf<ItemToDo>()
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
                 val idItem = obj.getString("id")
-                Log.d("PMR_JSON", "Contenu de l'item : $obj")
                 val desc = obj.getString("label")
-                //val isDone = obj.getInt("checked") == 1
                 val checkedValue = obj.optString("checked")
                 val isDone = (checkedValue == "1")
-                nouveauxItems.add(ItemToDo(idItem, desc, isDone))
+                nouveauxItems.add(ItemToDo(idItem, desc, isDone, id, false))
             }
 
             // Mise à jour de l'affichage
             maListe.lesItems.clear()
             maListe.lesItems.addAll(nouveauxItems)
             adapter?.notifyDataSetChanged()
+            
+            // Sauvegarde en cache
+            withContext(Dispatchers.IO) {
+                db.itemDao().insertAll(*nouveauxItems.toTypedArray())
+            }
 
         } catch (e: Exception) {
-            Log.e("PMR", "Erreur items : ${e.message}")
+            Log.e("PMR", "Erreur items, tentative cache : ${e.message}")
+            
+            // Mode Offline : Chargement depuis la BD
+            val cacheItems = withContext(Dispatchers.IO) {
+                db.itemDao().findByList(id)
+            }
+            
+            if (cacheItems.isNotEmpty()) {
+                maListe.lesItems.clear()
+                maListe.lesItems.addAll(cacheItems)
+                adapter?.notifyDataSetChanged()
+                Log.i("PMR", "Items chargés depuis le cache SQLite")
+            }
         }
     }
 }
